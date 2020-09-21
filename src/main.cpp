@@ -114,7 +114,7 @@ int main()
     cl_command_queue queue = clCreateCommandQueue(context, gpu_id, CL_QUEUE_PROFILING_ENABLE, &err_code);
     OCL_SAFE_CALL(err_code);
 
-    unsigned int n = 50*1000*1000;
+    unsigned int n = 100*1000*1000;
     // Создаем два массива псевдослучайных данных для сложения и массив для будущего хранения результата
     std::vector<float> as(n, 0);
     std::vector<float> bs(n, 0);
@@ -132,13 +132,17 @@ int main()
     // Данные в as и bs можно прогрузить этим же методом скопировав данные из host_ptr=as.data() (и не забыв про битовый флаг на это указывающий)
     // или же через метод Buffer Objects -> clEnqueueWriteBuffer
     // И хорошо бы сразу добавить в конце clReleaseMemObject (аналогично все дальнейшие ресурсы вроде OpenCL под-программы, кернела и т.п. тоже нужно освобождать)
+    cl_mem as_gpu = clCreateBuffer(context, CL_MEM_READ_ONLY, sizeof(float) * n, nullptr, &err_code);
+    OCL_SAFE_CALL(err_code);
+    OCL_SAFE_CALL(clEnqueueWriteBuffer(queue, as_gpu, CL_TRUE, 0, sizeof(float) * n, as.data(), 0, nullptr, nullptr));
 
-    cl_mem as_gpu = clCreateBuffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, sizeof(float) * n, as.data(), &err_code);
+    cl_mem bs_gpu = clCreateBuffer(context, CL_MEM_READ_ONLY, sizeof(float) * n, nullptr, &err_code);
     OCL_SAFE_CALL(err_code);
-    cl_mem bs_gpu = clCreateBuffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, sizeof(float) * n, bs.data(), &err_code);
+    OCL_SAFE_CALL(clEnqueueWriteBuffer(queue, bs_gpu, CL_TRUE, 0, sizeof(float) * n, bs.data(), 0, nullptr, nullptr));
+
+    cl_mem cs_gpu = clCreateBuffer(context, CL_MEM_WRITE_ONLY, sizeof(float) * n, nullptr, &err_code);
     OCL_SAFE_CALL(err_code);
-    cl_mem cs_gpu = clCreateBuffer(context, CL_MEM_WRITE_ONLY | CL_MEM_COPY_HOST_PTR, sizeof(float) * n, cs.data(), &err_code);
-    OCL_SAFE_CALL(err_code);
+
     // TODO 6 Выполните TODO 5 (реализуйте кернел в src/cl/aplusb.cl)
     // затем убедитесь что выходит загрузить его с диска (убедитесь что Working directory выставлена правильно - см. описание задания)
     // напечатав исходники в консоль (if проверяет что удалось считать хоть что-то)
@@ -225,7 +229,7 @@ int main()
         // - Флопс - это число операций с плавающей точкой в секунду
         // - В гигафлопсе 10^9 флопсов
         // - Среднее время выполнения кернела равно t.lapAvg() секунд
-        std::cout << "GFlops: " << (n / t.lapAvg()) * 1e-9 << std::endl;
+        std::cout << "GFlops: " << (n / t.lapAvg()) * 1LL* 1e-9 << std::endl;
 
         // TODO 14 Рассчитайте используемую пропускную способность обращений к видеопамяти (в гигабайтах в секунду)
         // - Всего элементов в массивах по n штук
